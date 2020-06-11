@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-func (op Operation) readWireMessageDirect(ctx context.Context, conn TranquilMongoConnection, wm []byte) ([]byte, error) {
+func (op Operation) ReadWireMessageDirect(ctx context.Context, conn TranquilMongoConnection, wm []byte) ([]byte, error) {
 	var err error
 
 	wm, err = conn.ReadWireMessage(ctx, wm[:0])

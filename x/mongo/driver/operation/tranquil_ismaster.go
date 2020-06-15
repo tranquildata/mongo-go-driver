@@ -96,6 +96,7 @@ type IsMasterResponse struct {
 	SpeculativeAuthenticate      bsoncore.Document `bson:"speculativeAuthenticate"`
 	Tags                         map[string]string
 	TopVersion                   *TopVersion
+	Localtime                    int64
 }
 
 func lookupAsType(doc bsoncore.Document, key string, expectedType bsontype.Type) (bsoncore.Value, error) {

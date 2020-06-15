@@ -3,6 +3,7 @@ package topology
 import (
 	"context"
 	"net"
+	"sync/atomic"
 
 	"go.mongodb.org/mongo-driver/x/mongo/driver"
 	"go.mongodb.org/mongo-driver/x/mongo/driver/address"
@@ -19,6 +20,7 @@ func NewFrontendConnection(ctx context.Context, addr string, conn net.Conn) (dri
 		return nil, err
 	}
 	mongoconn.nc = conn
+	atomic.StoreInt32(&mongoconn.connected, connected)
 	return &Tranquilconn{
 		mongoconn: &Connection{
 			connection: mongoconn,

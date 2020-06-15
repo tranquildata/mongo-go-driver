@@ -38,5 +38,6 @@ func (tqConn *Tranquilconn) ReadWireMessage(ctx context.Context, dst []byte) ([]
 }
 
 func (tqConn *Tranquilconn) Close() {
-	tqConn.mongoconn.Close()
+	//not needed as this closes the pool, which we shouldn't be using anyway
+	//tqConn.mongoconn.Close()
 }

@@ -118,7 +118,7 @@ func FromHandshake(docBytes []byte) (*IsMasterReq, error) {
 	}
 	val, err := doc.LookupErr("isMaster")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("isMaster not found: %s", err.Error())
 	}
 	if val.Type != bsontype.Int32 || val.AsInt32() != 1 {
 		return nil, fmt.Errorf("Invalid value found for isMaster: %v", val)
@@ -131,7 +131,7 @@ func FromHandshake(docBytes []byte) (*IsMasterReq, error) {
 	}
 	val, err = lookupAsType(doc, "compression", bsontype.Array)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("comporession not found: %s", err.Error())
 	}
 	vals, err := val.Array().Values()
 	if err != nil {
@@ -144,7 +144,7 @@ func FromHandshake(docBytes []byte) (*IsMasterReq, error) {
 	req.Compressors = comps
 	val, err = lookupAsType(doc, "client", bsontype.EmbeddedDocument)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client not found: %s", err.Error())
 	}
 	clientMetadata := val.Document()
 	return parseClientMetadata(clientMetadata, req)

@@ -118,7 +118,9 @@ func FromHandshake(docBytes []byte) (*IsMasterReq, error) {
 	}
 	val, err := doc.LookupErr("isMaster")
 	if err != nil {
-		return nil, fmt.Errorf("isMaster not found: %s", err.Error())
+		if val, err = doc.LookupErr("ismaster"); err != nil {
+			return nil, fmt.Errorf("isMaster not found: %s", err.Error())
+		}
 	}
 	if val.Type != bsontype.Int32 || val.AsInt32() != 1 {
 		return nil, fmt.Errorf("Invalid value found for isMaster: %v", val)
@@ -130,18 +132,17 @@ func FromHandshake(docBytes []byte) (*IsMasterReq, error) {
 		req.SpeculativeAuth = val.Document()
 	}
 	val, err = lookupAsType(doc, "compression", bsontype.Array)
-	if err != nil {
-		return nil, fmt.Errorf("comporession not found: %s", err.Error())
+	if err == nil {
+		vals, err := val.Array().Values()
+		if err != nil {
+			return nil, err
+		}
+		comps := make([]string, len(vals))
+		for idx, arrayVal := range vals {
+			comps[idx] = arrayVal.StringValue()
+		}
+		req.Compressors = comps
 	}
-	vals, err := val.Array().Values()
-	if err != nil {
-		return nil, err
-	}
-	comps := make([]string, len(vals))
-	for idx, arrayVal := range vals {
-		comps[idx] = arrayVal.StringValue()
-	}
-	req.Compressors = comps
 	val, err = lookupAsType(doc, "client", bsontype.EmbeddedDocument)
 	if err != nil {
 		return nil, fmt.Errorf("client not found: %s", err.Error())

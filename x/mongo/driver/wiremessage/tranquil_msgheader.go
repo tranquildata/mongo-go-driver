@@ -27,7 +27,9 @@ func ReadMsgHeader(src []byte) (*MsgHeader, error) {
 	return hdr, nil
 }
 
-// WriteMsgHeader reads a wire message header from src.
+// WriteMsgHeader writes a complete message header to the provided dst. The Length
+// field in the header must include the value equivalent to tne wire message length,
+// including the header as well as any eventual BSON payload.
 func WriteMsgHeader(hdr MsgHeader, dst []byte) []byte {
 	return AppendHeader(dst, hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode)
 }

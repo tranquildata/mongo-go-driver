@@ -14,19 +14,8 @@ func (op Operation) CreateWireMessageDirect(ctx context.Context, dst []byte, des
 	return op.createWireMessage(ctx, dst, desc, conn)
 }
 
-func (op Operation) ReadWireMessageDirect(ctx context.Context, conn TranquilMongoConnection, wm []byte) ([]byte, error) {
+func (op Operation) ReadWireMessageDirect(ctx context.Context, wm []byte) ([]byte, error) {
 	var err error
-
-	wm, err = conn.ReadWireMessage(ctx, wm[:0])
-	if err != nil {
-		return nil, err
-	}
-
-	// decompress wiremessage
-	wm, err = op.decompressWireMessage(wm)
-	if err != nil {
-		return nil, err
-	}
 
 	// decode
 	res, err := op.decodeWireMessage(wm)
@@ -97,7 +86,7 @@ func (op Operation) decodeOpMsg(wm []byte) (bsoncore.Document, error) {
 		return nil, NewCommandResponseError("malformed OP_MSG: invalid document", err)
 	}
 
-	return res, extractError(res)
+	return res, nil
 }
 
 func (op Operation) decodeWireMessage(wm []byte) (bsoncore.Document, error) {

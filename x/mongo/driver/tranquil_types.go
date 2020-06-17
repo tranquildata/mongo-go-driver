@@ -1,9 +1,13 @@
 package driver
 
-import "context"
+import (
+	"context"
+
+	"go.mongodb.org/mongo-driver/x/mongo/driver/wiremessage"
+)
 
 type TranquilMongoConnection interface {
 	WriteWireMessage(context.Context, []byte) error
-	ReadWireMessage(ctx context.Context, dst []byte) ([]byte, error)
+	ReadWireMessage(context.Context, []byte) (*wiremessage.MsgHeader, []byte, error)
 	Close()
 }

@@ -420,7 +420,7 @@ func (op Operation) createWireMessageFromParts(ctx context.Context, dst []byte, 
 	return bsoncore.UpdateLength(dst, wmindex, int32(len(body))), info, nil
 }
 
-func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte, reqHeader *wiremessage.MsgHeader, body bsoncore.Document) (*wiremessage.MsgHeader, []byte, error) {
+func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte, commandName string, reqHeader *wiremessage.MsgHeader, body bsoncore.Document) (*wiremessage.MsgHeader, []byte, error) {
 	var header *wiremessage.MsgHeader
 	var res bsoncore.Document
 	var operationErr WriteCommandError
@@ -465,8 +465,8 @@ func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte, reqHeader
 
 		// set extra data and send event if possible
 		startedInfo.connID = setup.conn.ID()
-		startedInfo.cmdName = op.getCommandName(startedInfo.cmd)
-		startedInfo.redacted = op.redactCommand(startedInfo.cmdName, startedInfo.cmd)
+		startedInfo.cmdName = commandName
+		startedInfo.redacted = op.redactCommand(startedInfo.cmdName, body)
 		op.publishStartedEvent(ctx, startedInfo)
 
 		// get the moreToCome flag information before we compress

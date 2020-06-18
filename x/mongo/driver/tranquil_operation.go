@@ -411,7 +411,16 @@ func (op Operation) processExecuteError(ctx context.Context, err error, operatio
 	return nil, false
 }
 
-func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte) (*wiremessage.MsgHeader, []byte, error) {
+func (op Operation) createWireMessageFromParts(ctx context.Context, dst []byte, reqHeader *wiremessage.MsgHeader, body bsoncore.Document) ([]byte, startedInformation, error) {
+	var info startedInformation
+	var wmindex int32
+	info.requestID = wiremessage.NextRequestID()
+	wmindex, dst = wiremessage.AppendHeaderStart(dst, info.requestID, 0, reqHeader.Opcode)
+	dst = append(dst, body...)
+	return bsoncore.UpdateLength(dst, wmindex, int32(len(body))), info, nil
+}
+
+func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte, reqHeader *wiremessage.MsgHeader, body bsoncore.Document) (*wiremessage.MsgHeader, []byte, error) {
 	var header *wiremessage.MsgHeader
 	var res bsoncore.Document
 	var operationErr WriteCommandError
@@ -449,7 +458,7 @@ func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte) (*wiremes
 		//CREATE MESSAGE
 		var wm []byte
 		var startedInfo startedInformation
-		wm, startedInfo, err = op.createWireMessage(ctx, scratch, *setup.desc, setup.conn)
+		wm, startedInfo, err = op.createWireMessageFromParts(ctx, scratch, reqHeader, body)
 		if err != nil {
 			return nil, nil, err
 		}

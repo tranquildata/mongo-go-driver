@@ -447,7 +447,9 @@ func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte) (*wiremes
 			scratch = scratch[:0]
 		}
 		//CREATE MESSAGE
-		wm, startedInfo, err := op.createWireMessage(ctx, scratch, *setup.desc, setup.conn)
+		var wm []byte
+		var startedInfo startedInformation
+		wm, startedInfo, err = op.createWireMessage(ctx, scratch, *setup.desc, setup.conn)
 		if err != nil {
 			return nil, nil, err
 		}

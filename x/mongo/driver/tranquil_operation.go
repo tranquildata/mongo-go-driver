@@ -249,6 +249,7 @@ func ReadWireMessageFromConn(ctx context.Context, conn Connection, dst []byte) (
 	if !ok {
 		return nil, nil, errors.New("Incomplete header")
 	}
+	//TODO: decompress and decrypt would go here
 	return
 }
 

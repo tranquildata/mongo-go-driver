@@ -5,6 +5,7 @@
 package mongo
 
 import (
+	"go.mongodb.org/mongo-driver/x/mongo/driver"
 	"go.mongodb.org/mongo-driver/x/mongo/driver/session"
 	"go.mongodb.org/mongo-driver/x/mongo/driver/uuid"
 )
@@ -15,4 +16,8 @@ func (c *Client) GetSessionPool() *session.Pool {
 
 func (c *Client) GetID() uuid.UUID {
 	return c.id
+}
+
+func (c *Client) GetDeployment() driver.Deployment {
+	return c.deployment
 }

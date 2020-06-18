@@ -245,7 +245,7 @@ func ReadWireMessageFromConn(ctx context.Context, conn Connection, dst []byte) (
 	}
 	var ok bool
 	hdr = &wiremessage.MsgHeader{}
-	hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode, _, ok = wiremessage.ReadHeader(wm)
+	hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode, wm, ok = wiremessage.ReadHeader(wm)
 	if !ok {
 		return nil, nil, errors.New("Incomplete header")
 	}

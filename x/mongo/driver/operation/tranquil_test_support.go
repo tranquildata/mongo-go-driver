@@ -11,7 +11,7 @@ func (i *Insert) ToOperation() *driver.Operation {
 		Ordered:    i.ordered,
 	}
 
-	return driver.Operation{
+	return &driver.Operation{
 		CommandFn:         i.command,
 		ProcessResponseFn: i.processResponse,
 		Batches:           batches,

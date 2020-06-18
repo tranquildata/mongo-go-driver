@@ -21,3 +21,13 @@ func (c *Client) GetID() uuid.UUID {
 func (c *Client) GetDeployment() driver.Deployment {
 	return c.deployment
 }
+
+func (c *Client) PrepareOperation(op *driver.Operation) *driver.Operation {
+	op.Clock = c.clock
+	op.Deployment = c.deployment
+	op.CommandMonitor = c.monitor
+	op.ReadConcern = c.readConcern
+	op.ReadPreference = c.readPreference
+	op.WriteConcern = c.writeConcern
+	return op
+}

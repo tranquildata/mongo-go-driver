@@ -14,6 +14,13 @@ type Tranquilconn struct {
 	mongoconn driver.Connection
 }
 
+func NewFrontendConnectionFromDriver(ctx context.Context, dConn driver.Connection) (driver.TranquilMongoConnection, error) {
+	mongoconn := dConn
+	return &Tranquilconn{
+		mongoconn: mongoconn,
+	}, nil
+}
+
 func NewFrontendConnection(ctx context.Context, addr string, conn net.Conn) (driver.TranquilMongoConnection, error) {
 	var driverAddr address.Address
 	mongoconn, err := newConnection(ctx, driverAddr)

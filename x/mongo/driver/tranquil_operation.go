@@ -31,16 +31,26 @@ func (op Operation) CreateWireMessageDirect(ctx context.Context, dst []byte, des
 	return op.createWireMessage(ctx, dst, desc, conn)
 }
 
-func (op Operation) ReadAndUncompressBodyBytes(ctx context.Context, wholeMsg []byte) ([]byte, error) {
+//Reads the whole message and returns the body bytes uncompressed, and the interpreted body bytes
+func (op Operation) ReadAndUncompressBodyBytes(ctx context.Context, wholeMsg []byte) ([]byte, bsoncore.Document, error) {
 	bodyBytes, err := op.decompressWireMessage(wholeMsg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if op.Crypt != nil {
-		return nil, fmt.Errorf("Client-side encryption is not supported")
+	//TODO: figure out how to avoid interpreting every message to find the 1 or 2 terminating messages
+	// decode strips off body bytes, and does a lot of work we probably don't need to do
+	res, err := op.decodeWireMessage(bodyBytes)
+	if err != nil {
+		return bodyBytes, res, err
 	}
-	return bodyBytes, nil
+
+	// If there is no error, automatically attempt to decrypt all results if client side encryption is enabled.
+	if op.Crypt != nil {
+		res, err = op.Crypt.Decrypt(ctx, res)
+	}
+	return bodyBytes, res, err
+
 }
 
 func (op Operation) ReadWireMessageDirect(ctx context.Context, wm []byte) ([]byte, error) {
@@ -50,7 +60,7 @@ func (op Operation) ReadWireMessageDirect(ctx context.Context, wm []byte) ([]byt
 		return nil, err
 	}
 
-	// decode strips off body bytes
+	// decode strips off body bytes, and does a lot of work we probably don't need to do
 	res, err := op.decodeWireMessage(wm)
 	if err != nil {
 		return res, err

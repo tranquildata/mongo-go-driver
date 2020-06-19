@@ -31,10 +31,26 @@ func (op Operation) CreateWireMessageDirect(ctx context.Context, dst []byte, des
 	return op.createWireMessage(ctx, dst, desc, conn)
 }
 
+func (op Operation) ReadAndUncompressBodyBytes(ctx context.Context, wholeMsg []byte) ([]byte, error) {
+	bodyBytes, err := op.decompressWireMessage(wholeMsg)
+	if err != nil {
+		return nil, err
+	}
+
+	if op.Crypt != nil {
+		return nil, fmt.Errorf("Client-side encryption is not supported")
+	}
+	return bodyBytes, nil
+}
+
 func (op Operation) ReadWireMessageDirect(ctx context.Context, wm []byte) ([]byte, error) {
 	var err error
+	wm, err = op.decompressWireMessage(wm)
+	if err != nil {
+		return nil, err
+	}
 
-	// decode
+	// decode strips off body bytes
 	res, err := op.decodeWireMessage(wm)
 	if err != nil {
 		return res, err
@@ -66,6 +82,7 @@ func (op Operation) decodeReply(wm []byte) (bsoncore.Document, error) {
 	return rdr, extractError(rdr)
 }
 
+//This will strip off flags from the incoming message
 func (op Operation) decodeOpMsg(wm []byte) (bsoncore.Document, error) {
 	var ok bool
 	_, wm, ok = wiremessage.ReadMsgFlags(wm)
@@ -113,6 +130,7 @@ func (op Operation) decodeWireMessage(wm []byte) (bsoncore.Document, error) {
 		return nil, errors.New("malformed wire message: insufficient bytes")
 	}
 
+	//Is this correct?
 	wm = wm[:wmLength-16] // constrain to just this wiremessage, incase there are multiple in the slice
 
 	switch opcode {

@@ -2,7 +2,6 @@ package topology
 
 import (
 	"context"
-	"errors"
 	"net"
 	"sync/atomic"
 
@@ -13,6 +12,13 @@ import (
 
 type Tranquilconn struct {
 	mongoconn driver.Connection
+}
+
+func NewFrontendConnectionFromDriver(ctx context.Context, dConn driver.Connection) (driver.TranquilMongoConnection, error) {
+	mongoconn := dConn
+	return &Tranquilconn{
+		mongoconn: mongoconn,
+	}, nil
 }
 
 func NewFrontendConnection(ctx context.Context, addr string, conn net.Conn) (driver.TranquilMongoConnection, error) {
@@ -38,17 +44,7 @@ func (tqConn *Tranquilconn) WriteWireMessage(ctx context.Context, msg []byte) er
 }
 
 func (tqConn *Tranquilconn) ReadWireMessage(ctx context.Context, dst []byte) (hdr *wiremessage.MsgHeader, wm []byte, err error) {
-	wm, err = tqConn.mongoconn.ReadWireMessage(ctx, dst)
-	if err != nil {
-		return nil, nil, err
-	}
-	var ok bool
-	hdr = &wiremessage.MsgHeader{}
-	hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode, _, ok = wiremessage.ReadHeader(wm)
-	if !ok {
-		return nil, nil, errors.New("Incomplete header")
-	}
-	return
+	return driver.ReadWireMessageFromConn(ctx, tqConn.mongoconn, dst)
 }
 
 func (tqConn *Tranquilconn) Close() {

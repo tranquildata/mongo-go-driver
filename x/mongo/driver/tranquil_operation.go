@@ -38,7 +38,7 @@ func (Operation) decompressBody(wm []byte) ([]byte, error) {
 		return nil, errors.New("malformed wire message: insufficient bytes")
 	}
 	if opcode != wiremessage.OpCompressed {
-		return wm, nil
+		return rem, nil
 	}
 	// get the original opcode and uncompressed size
 	opcode, rem, ok = wiremessage.ReadCompressedOriginalOpCode(rem)

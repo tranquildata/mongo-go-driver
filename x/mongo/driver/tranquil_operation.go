@@ -40,7 +40,7 @@ func (op Operation) ReadAndUncompressBodyBytes(ctx context.Context, wholeMsg []b
 
 	//TODO: figure out how to avoid interpreting every message to find the 1 or 2 terminating messages
 	// decode strips off body bytes, and does a lot of work we probably don't need to do
-	res, err := op.decodeWireMessage(bodyBytes)
+	res, err := op.decodeWireMessage(wholeMsg)
 	if err != nil {
 		return bodyBytes, res, err
 	}

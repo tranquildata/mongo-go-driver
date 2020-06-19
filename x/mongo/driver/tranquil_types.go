@@ -8,6 +8,7 @@ import (
 
 type TranquilMongoConnection interface {
 	WriteWireMessage(context.Context, []byte) error
-	ReadWireMessage(context.Context, []byte) (*wiremessage.MsgHeader, []byte, error)
+	//ReadWireMessage returns the header, the body, the whole message,  and/or any errors
+	ReadWireMessage(context.Context, []byte) (*wiremessage.MsgHeader, []byte, []byte, error)
 	Close()
 }

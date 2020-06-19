@@ -43,8 +43,9 @@ func (tqConn *Tranquilconn) WriteWireMessage(ctx context.Context, msg []byte) er
 	return tqConn.mongoconn.WriteWireMessage(ctx, msg)
 }
 
-func (tqConn *Tranquilconn) ReadWireMessage(ctx context.Context, dst []byte) (hdr *wiremessage.MsgHeader, wm []byte, err error) {
-	return driver.ReadWireMessageFromConn(ctx, tqConn.mongoconn, dst)
+func (tqConn *Tranquilconn) ReadWireMessage(ctx context.Context, dst []byte) (hdr *wiremessage.MsgHeader, body []byte, wholeMsg []byte, err error) {
+	hdr, body, wholeMsg, err = driver.ReadWireMessageFromConn(ctx, tqConn.mongoconn, dst)
+	return
 }
 
 func (tqConn *Tranquilconn) Close() {

@@ -238,16 +238,16 @@ func (op Operation) executeValidateAndConfig(ctx context.Context, scratch []byte
 	}, nil
 }
 
-func ReadWireMessageFromConn(ctx context.Context, conn Connection, dst []byte) (hdr *wiremessage.MsgHeader, wm []byte, err error) {
-	wm, err = conn.ReadWireMessage(ctx, dst)
+func ReadWireMessageFromConn(ctx context.Context, conn Connection, dst []byte) (hdr *wiremessage.MsgHeader, body []byte, entireMsg []byte, err error) {
+	entireMsg, err = conn.ReadWireMessage(ctx, dst)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var ok bool
 	hdr = &wiremessage.MsgHeader{}
-	hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode, wm, ok = wiremessage.ReadHeader(wm)
+	hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode, body, ok = wiremessage.ReadHeader(entireMsg)
 	if !ok {
-		return nil, nil, errors.New("Incomplete header")
+		return nil, nil, nil, errors.New("Incomplete header")
 	}
 	//TODO: decompress and decrypt would go here
 	return
@@ -269,7 +269,8 @@ func (op Operation) roundTripDirect(ctx context.Context, conn Connection, wm []b
 		return nil, nil, Error{Message: err.Error(), Labels: labels, Wrapped: err}
 	}
 
-	return ReadWireMessageFromConn(ctx, conn, wm)
+	hdr, body, _, err := ReadWireMessageFromConn(ctx, conn, wm)
+	return hdr, body, err
 }
 
 func (op *Operation) moreToComeRoundTripDirect(ctx context.Context, conn Connection, wm []byte) (*wiremessage.MsgHeader, []byte, error) {

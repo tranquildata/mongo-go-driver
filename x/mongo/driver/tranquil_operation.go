@@ -31,9 +31,53 @@ func (op Operation) CreateWireMessageDirect(ctx context.Context, dst []byte, des
 	return op.createWireMessage(ctx, dst, desc, conn)
 }
 
+func (Operation) decompressBody(wm []byte) ([]byte, error) {
+	// read the header and ensure this is a compressed wire message
+	length, reqid, respto, opcode, rem, ok := wiremessage.ReadHeader(wm)
+	if !ok || len(wm) < int(length) {
+		return nil, errors.New("malformed wire message: insufficient bytes")
+	}
+	if opcode != wiremessage.OpCompressed {
+		return wm, nil
+	}
+	// get the original opcode and uncompressed size
+	opcode, rem, ok = wiremessage.ReadCompressedOriginalOpCode(rem)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: missing original opcode")
+	}
+	uncompressedSize, rem, ok := wiremessage.ReadCompressedUncompressedSize(rem)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: missing uncompressed size")
+	}
+	// get the compressor ID and decompress the message
+	compressorID, rem, ok := wiremessage.ReadCompressedCompressorID(rem)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: missing compressor ID")
+	}
+	compressedSize := length - 25 // header (16) + original opcode (4) + uncompressed size (4) + compressor ID (1)
+	// return the original wiremessage
+	msg, rem, ok := wiremessage.ReadCompressedCompressedMessage(rem, compressedSize)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: insufficient bytes for compressed wiremessage")
+	}
+
+	header := make([]byte, 0, uncompressedSize+16)
+	header = wiremessage.AppendHeader(header, uncompressedSize+16, reqid, respto, opcode)
+	opts := CompressionOpts{
+		Compressor:       compressorID,
+		UncompressedSize: uncompressedSize,
+	}
+	uncompressed, err := DecompressPayload(msg, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return uncompressed, nil
+}
+
 //Reads the whole message and returns the body bytes uncompressed, and the interpreted body bytes
 func (op Operation) ReadAndUncompressBodyBytes(ctx context.Context, wholeMsg []byte) ([]byte, bsoncore.Document, error) {
-	bodyBytes, err := op.decompressWireMessage(wholeMsg)
+	bodyBytes, err := op.decompressBody(wholeMsg)
 	if err != nil {
 		return nil, nil, err
 	}

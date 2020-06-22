@@ -490,7 +490,7 @@ func (op Operation) createWireMessageFromParts(ctx context.Context, dst []byte, 
 	info.requestID = wiremessage.NextRequestID()
 	wmindex, dst = wiremessage.AppendHeaderStart(dst, info.requestID, 0, reqHeader.Opcode)
 	dst = append(dst, body...)
-	return bsoncore.UpdateLength(dst, wmindex, int32(len(body))), info, nil
+	return bsoncore.UpdateLength(dst, wmindex, int32(len(dst[wmindex:]))), info, nil
 }
 
 func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte, commandName string, reqHeader *wiremessage.MsgHeader, body bsoncore.Document) (*wiremessage.MsgHeader, []byte, error) {

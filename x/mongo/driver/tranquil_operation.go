@@ -31,10 +31,80 @@ func (op Operation) CreateWireMessageDirect(ctx context.Context, dst []byte, des
 	return op.createWireMessage(ctx, dst, desc, conn)
 }
 
+func (Operation) decompressBody(wm []byte) ([]byte, error) {
+	// read the header and ensure this is a compressed wire message
+	length, reqid, respto, opcode, rem, ok := wiremessage.ReadHeader(wm)
+	if !ok || len(wm) < int(length) {
+		return nil, errors.New("malformed wire message: insufficient bytes")
+	}
+	if opcode != wiremessage.OpCompressed {
+		return rem, nil
+	}
+	// get the original opcode and uncompressed size
+	opcode, rem, ok = wiremessage.ReadCompressedOriginalOpCode(rem)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: missing original opcode")
+	}
+	uncompressedSize, rem, ok := wiremessage.ReadCompressedUncompressedSize(rem)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: missing uncompressed size")
+	}
+	// get the compressor ID and decompress the message
+	compressorID, rem, ok := wiremessage.ReadCompressedCompressorID(rem)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: missing compressor ID")
+	}
+	compressedSize := length - 25 // header (16) + original opcode (4) + uncompressed size (4) + compressor ID (1)
+	// return the original wiremessage
+	msg, rem, ok := wiremessage.ReadCompressedCompressedMessage(rem, compressedSize)
+	if !ok {
+		return nil, errors.New("malformed OP_COMPRESSED: insufficient bytes for compressed wiremessage")
+	}
+
+	header := make([]byte, 0, uncompressedSize+16)
+	header = wiremessage.AppendHeader(header, uncompressedSize+16, reqid, respto, opcode)
+	opts := CompressionOpts{
+		Compressor:       compressorID,
+		UncompressedSize: uncompressedSize,
+	}
+	uncompressed, err := DecompressPayload(msg, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return uncompressed, nil
+}
+
+//Reads the whole message and returns the body bytes uncompressed, and the interpreted body bytes
+func (op Operation) ReadAndUncompressBodyBytes(ctx context.Context, wholeMsg []byte) ([]byte, bsoncore.Document, error) {
+	bodyBytes, err := op.decompressBody(wholeMsg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//TODO: figure out how to avoid interpreting every message to find the 1 or 2 terminating messages
+	// decode strips off body bytes, and does a lot of work we probably don't need to do
+	res, err := op.decodeWireMessage(wholeMsg)
+	if err != nil {
+		return bodyBytes, res, err
+	}
+
+	// If there is no error, automatically attempt to decrypt all results if client side encryption is enabled.
+	if op.Crypt != nil {
+		res, err = op.Crypt.Decrypt(ctx, res)
+	}
+	return bodyBytes, res, err
+
+}
+
 func (op Operation) ReadWireMessageDirect(ctx context.Context, wm []byte) ([]byte, error) {
 	var err error
+	wm, err = op.decompressWireMessage(wm)
+	if err != nil {
+		return nil, err
+	}
 
-	// decode
+	// decode strips off body bytes, and does a lot of work we probably don't need to do
 	res, err := op.decodeWireMessage(wm)
 	if err != nil {
 		return res, err
@@ -66,6 +136,7 @@ func (op Operation) decodeReply(wm []byte) (bsoncore.Document, error) {
 	return rdr, extractError(rdr)
 }
 
+//This will strip off flags from the incoming message
 func (op Operation) decodeOpMsg(wm []byte) (bsoncore.Document, error) {
 	var ok bool
 	_, wm, ok = wiremessage.ReadMsgFlags(wm)
@@ -113,6 +184,7 @@ func (op Operation) decodeWireMessage(wm []byte) (bsoncore.Document, error) {
 		return nil, errors.New("malformed wire message: insufficient bytes")
 	}
 
+	//Is this correct?
 	wm = wm[:wmLength-16] // constrain to just this wiremessage, incase there are multiple in the slice
 
 	switch opcode {
@@ -238,16 +310,16 @@ func (op Operation) executeValidateAndConfig(ctx context.Context, scratch []byte
 	}, nil
 }
 
-func ReadWireMessageFromConn(ctx context.Context, conn Connection, dst []byte) (hdr *wiremessage.MsgHeader, wm []byte, err error) {
-	wm, err = conn.ReadWireMessage(ctx, dst)
+func ReadWireMessageFromConn(ctx context.Context, conn Connection, dst []byte) (hdr *wiremessage.MsgHeader, body []byte, entireMsg []byte, err error) {
+	entireMsg, err = conn.ReadWireMessage(ctx, dst)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var ok bool
 	hdr = &wiremessage.MsgHeader{}
-	hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode, wm, ok = wiremessage.ReadHeader(wm)
+	hdr.Length, hdr.RequestID, hdr.ResponseTo, hdr.Opcode, body, ok = wiremessage.ReadHeader(entireMsg)
 	if !ok {
-		return nil, nil, errors.New("Incomplete header")
+		return nil, nil, nil, errors.New("Incomplete header")
 	}
 	//TODO: decompress and decrypt would go here
 	return
@@ -269,7 +341,8 @@ func (op Operation) roundTripDirect(ctx context.Context, conn Connection, wm []b
 		return nil, nil, Error{Message: err.Error(), Labels: labels, Wrapped: err}
 	}
 
-	return ReadWireMessageFromConn(ctx, conn, wm)
+	hdr, body, _, err := ReadWireMessageFromConn(ctx, conn, wm)
+	return hdr, body, err
 }
 
 func (op *Operation) moreToComeRoundTripDirect(ctx context.Context, conn Connection, wm []byte) (*wiremessage.MsgHeader, []byte, error) {
@@ -417,7 +490,7 @@ func (op Operation) createWireMessageFromParts(ctx context.Context, dst []byte, 
 	info.requestID = wiremessage.NextRequestID()
 	wmindex, dst = wiremessage.AppendHeaderStart(dst, info.requestID, 0, reqHeader.Opcode)
 	dst = append(dst, body...)
-	return bsoncore.UpdateLength(dst, wmindex, int32(len(body))), info, nil
+	return bsoncore.UpdateLength(dst, wmindex, int32(len(dst[wmindex:]))), info, nil
 }
 
 func (op Operation) ExecuteDirect(ctx context.Context, scratch []byte, commandName string, reqHeader *wiremessage.MsgHeader, body bsoncore.Document) (*wiremessage.MsgHeader, []byte, error) {

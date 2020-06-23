@@ -184,16 +184,18 @@ func (op Operation) decodeWireMessage(wm []byte) (bsoncore.Document, error) {
 		return nil, errors.New("malformed wire message: insufficient bytes")
 	}
 
-	//Is this correct?
-	wm = wm[:wmLength-16] // constrain to just this wiremessage, incase there are multiple in the slice
+	// constrain to just this wiremessage, incase there are multiple in the slice
+	return op.decodeWireMessageBody(wm[:wmLength-16], opcode)
+}
 
+func (op Operation) decodeWireMessageBody(body []byte, opcode wiremessage.OpCode) (bsoncore.Document, error) {
 	switch opcode {
 	case wiremessage.OpReply:
-		return op.decodeReply(wm)
+		return op.decodeReply(body)
 	case wiremessage.OpMsg:
-		return op.decodeOpMsg(wm)
+		return op.decodeOpMsg(body)
 	case wiremessage.OpQuery:
-		return op.decodeOpQuery(wm)
+		return op.decodeOpQuery(body)
 	default:
 		return nil, fmt.Errorf("cannot decode result from %s", opcode)
 	}

@@ -177,6 +177,10 @@ func (op Operation) decodeOpMsg(wm []byte) (bsoncore.Document, error) {
 	return res, nil
 }
 
+func (op Operation) DecodeMessageBody(header *wiremessage.MsgHeader, body []byte) (bsoncore.Document, error) {
+	return op.decodeWireMessageBody(body, header.Opcode)
+}
+
 func (op Operation) decodeWireMessage(wm []byte) (bsoncore.Document, error) {
 	wmLength := len(wm)
 	length, _, _, opcode, wm, ok := wiremessage.ReadHeader(wm)

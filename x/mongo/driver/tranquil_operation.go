@@ -31,6 +31,10 @@ func (op Operation) CreateWireMessageDirect(ctx context.Context, dst []byte, des
 	return op.createWireMessage(ctx, dst, desc, conn)
 }
 
+func (op Operation) DecodeMessageResult(wm []byte) (bsoncore.Document, error) {
+	return op.decodeResult(wm)
+}
+
 func (Operation) decompressBody(wm []byte) ([]byte, error) {
 	// read the header and ensure this is a compressed wire message
 	length, reqid, respto, opcode, rem, ok := wiremessage.ReadHeader(wm)
